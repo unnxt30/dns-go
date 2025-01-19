@@ -2,30 +2,22 @@ package cmd
 
 import (
 	"errors"
-	"fmt"
-	"strconv"
 	"strings"
 )
 
-func EncodeNameString(s string) (string, error) {
+func EncodeNameString(s string) ([]byte, error) {
 	split_string := strings.Split(s, ".")
+	var encoded []byte
+	for _, part := range split_string {
+		if len(part) > 63 {
+			return nil, errors.New("label too long")
+		}
 
-	if len(split_string) <= 1 {
-		return "", errors.New("Invalid Name-String")
-	}
-
-	var result_string string
-
-	for _, v := range split_string {
-
-		part_length := strconv.Itoa(len(v))
-
-		result_string += part_length
-		result_string += v
+		encoded = append(encoded, byte(len(part)))
+		encoded = append(encoded, part...)
 
 	}
 
-	fmt.Println(result_string)
-
-	return result_string, nil
+	encoded = append(encoded, 0)
+	return encoded, nil
 }
