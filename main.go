@@ -1,12 +1,9 @@
 package main
 
-import "fmt"
+import "github.com/unnxt30/dns-go/cmd"
 
 func main() {
 
-	var myNum uint
-	myNum = 20
-
-	fmt.Println(myNum)
+	cmd.PerformEncoding()
 
 }

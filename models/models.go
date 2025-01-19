@@ -37,3 +37,8 @@ type DNSQuestion struct {
 	QType  RecordType
 	QClass ClassType
 }
+
+type DNSMessage struct {
+	Header   DNSHeader
+	Question DNSQuestion
+}
