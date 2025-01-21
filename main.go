@@ -2,12 +2,15 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"net"
 
 	"github.com/unnxt30/dns-go/cmd"
 	"github.com/unnxt30/dns-go/models"
 )
 
 func main() {
+
 	flags := models.HeaderFlags{
 		RD: 1,
 	}
@@ -21,7 +24,7 @@ func main() {
 		ARCount: 0,
 	}
 	question := models.DNSQuestion{
-		QName:  "www.google.com",
+		QName:  "dns.google.com",
 		QType:  models.A,
 		QClass: models.IN,
 	}
@@ -38,6 +41,32 @@ func main() {
 		return
 	}
 
-	fmt.Println(encoded)
+	addr, err := net.ResolveUDPAddr("udp", "8.8.8.8:53")
+	if err != nil {
+		fmt.Println("Couldn't create a UDP address")
+	}
+
+	conn, err := net.DialUDP("udp", nil, addr)
+
+	_, err = conn.Write(encoded)
+
+	if err != nil {
+		fmt.Println("Could not send message to server")
+		return
+	}
+
+	buf := make([]byte, 1024)
+	go func() {
+		for {
+			n, err := conn.Read(buf)
+
+			if err != nil {
+				log.Fatal(err)
+				break
+			}
+
+			fmt.Println(buf[:n])
+		}
+	}()
 
 }
