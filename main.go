@@ -48,25 +48,25 @@ func main() {
 
 	conn, err := net.DialUDP("udp", nil, addr)
 
-	_, err = conn.Write(encoded)
+	if err != nil {
+		log.Fatal(err)
+		return 
+	}
+
+	defer conn.Close()
+
+	resp, err := cmd.ExchangeMessage(conn, encoded)
 
 	if err != nil {
-		fmt.Println("Could not send message to server")
+		fmt.Println("Error exchanging message")
 		return
 	}
 
-	buf := make([]byte, 1024)
-	go func() {
-		for {
-			n, err := conn.Read(buf)
+	_, err = cmd.DecodeHeader(resp)
 
-			if err != nil {
-				log.Fatal(err)
-				break
-			}
-
-			fmt.Println(buf[:n])
-		}
-	}()
+	if err != nil {
+		fmt.Println("Error decoding")
+		return
+	}
 
 }

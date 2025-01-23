@@ -24,3 +24,15 @@ func (hf HeaderFlags) Pack() uint16 {
 
 	return flags
 }
+
+func UnpackFlags(flags uint16) HeaderFlags {
+    return HeaderFlags{
+        TC:    (flags >> 9) & 1,
+        RD:    (flags >> 8) & 1,
+        RA:    (flags >> 7) & 1,
+        Z:     (flags >> 4) & 1,
+        RCode: flags & 0xF,
+    }
+}
+
+

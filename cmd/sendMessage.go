@@ -1,15 +1,24 @@
 package cmd
 
 import (
+	"log"
 	"net"
 )
 
-func SendMessage(conn *net.UDPConn, encoded []byte) error {
-	addr := net.UDPAddr{
-		Port: 53,
-		IP:   net.ParseIP("8.8.8.8"),
-	}
-	conn.WriteToUDP(encoded, &addr)
+func ExchangeMessage(conn *net.UDPConn, encoded []byte) ([]byte, error) {
 
-	return nil
+    _, err := conn.Write(encoded)
+    if err != nil {
+        log.Fatal(err)
+        return nil, err
+    }
+
+    buf := make([]byte, 1024)
+	n, err := conn.Read(buf)
+	if err != nil {
+		log.Fatal(err)
+		return nil, err
+	}
+
+    return buf[:n],nil
 }
