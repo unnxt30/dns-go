@@ -27,6 +27,9 @@ func (hf HeaderFlags) Pack() uint16 {
 
 func UnpackFlags(flags uint16) HeaderFlags {
     return HeaderFlags{
+		QR:   (flags >> 15) & 1,
+		Opcode: (flags >> 11) & 0xF,
+		AA:    (flags >> 10) & 1,
         TC:    (flags >> 9) & 1,
         RD:    (flags >> 8) & 1,
         RA:    (flags >> 7) & 1,

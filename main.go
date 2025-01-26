@@ -25,8 +25,8 @@ func main() {
 	}
 	question := models.DNSQuestion{
 		QName:  "dns.google.com",
-		QType:  models.A,
-		QClass: models.IN,
+		QType: 1,
+		QClass: 1,
 	}
 
 	message := models.DNSMessage{
@@ -62,7 +62,14 @@ func main() {
 		return
 	}
 
-	_, err = cmd.DecodeHeader(resp)
+	// _, err = cmd.DecodeHeader(resp)
+
+	// if err != nil {
+	// 	fmt.Println("Error decoding")
+	// 	return
+	// }
+
+	_, err = cmd.DecodeQuestion(resp)
 
 	if err != nil {
 		fmt.Println("Error decoding")

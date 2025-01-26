@@ -8,6 +8,10 @@ import (
 	"github.com/unnxt30/dns-go/models"
 )
 
+func print(x ...interface{}){
+	fmt.Println(x...)
+}
+
 func DecodeHeader(encoded []byte) (string, error) {
 	var header models.DNSHeader
 
@@ -37,6 +41,55 @@ func DecodeHeader(encoded []byte) (string, error) {
 		}
 		value := headerValue.Field(i).Interface()
 		fmt.Println(field.Name, value)
+	}
+
+	return "", nil
+}
+
+func DecodeQuestion(encoded []byte) (string, error) {
+	var question models.DNSQuestion
+	qnameEnd := 12
+	for encoded[qnameEnd] != 0 {
+		qnameEnd++
+	}
+	name := ""
+	for i := 12; i < qnameEnd; i++ {
+		length := int(encoded[i])
+		if length == 0 {
+			break
+		}
+		if len(name) > 0{
+			name += "."
+		}
+		name += string(encoded[i:i+length+1])
+		i += length
+	}
+	qnameEnd++	
+
+	question.QName = name
+	typeEnd := qnameEnd + 2 
+	question.QType = binary.BigEndian.Uint16(encoded[qnameEnd:typeEnd])
+	classEnd := typeEnd + 2
+	question.QClass = binary.BigEndian.Uint16(encoded[typeEnd:classEnd])
+
+
+	questionType := reflect.TypeOf(question)
+	questionValue := reflect.ValueOf(question)
+
+	for i:=0; i<questionType.NumField(); i++ {
+		field := questionType.Field(i)
+		value := questionValue.Field(i).Interface()
+		if field.Name == "QClass"{
+			value = models.ClassType(value.(uint16))
+			print("ClassType", value)
+			continue
+		}
+		if field.Name == "QType"{
+			value = models.RecordType(value.(uint16))
+			print("RecordType", value)
+			continue
+		}
+		print(field.Name,value)
 	}
 
 	return "", nil
