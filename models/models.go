@@ -19,3 +19,4 @@ type DNSMessage struct {
 	Header   DNSHeader
 	Question DNSQuestion
 }
+

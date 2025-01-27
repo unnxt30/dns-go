@@ -69,11 +69,31 @@ func main() {
 	// 	return
 	// }
 
-	_, err = cmd.DecodeQuestion(resp)
+
+	decoder := cmd.DNSDecoder{
+		Encoded: resp,
+		Offset: 0,
+	}	
+
+	h, err := decoder.DecodeHeader()
+	if err != nil {
+		fmt.Println(err)
+		return 
+	}
+
+	_, err = decoder.DecodeQuestion()
 
 	if err != nil {
 		fmt.Println("Error decoding")
 		return
 	}
+
+	_, err = decoder.DecodeAnswers(int(h.ANCount))
+
+	if err != nil {
+		fmt.Println(err)
+		return 
+	}
+
 
 }
