@@ -1,196 +1,3 @@
-// package cmd
-
-// import (
-// 	"encoding/binary"
-// 	"fmt"
-// 	"reflect"
-
-// 	"github.com/unnxt30/dns-go/models"
-// )
-
-// func print(x ...interface{}){
-// 	fmt.Println(x...)
-// }
-
-// func printStructFields(v interface{}) {
-//     val := reflect.ValueOf(v)
-//     typ := reflect.TypeOf(v)
-
-//     for i := 0; i < typ.NumField(); i++ {
-//         field := typ.Field(i)
-//         value := val.Field(i).Interface()
-
-//         if field.Type.Kind() == reflect.Struct {
-//             fmt.Printf("Nested Struct: %s\n", field.Name)
-//             printStructFields(value)
-//         } else {
-//             switch field.Name {
-//             case "QClass":
-//                 value = models.ClassType(value.(uint16))
-//                 print("ClassType", value)
-//             case "QType":
-//                 value = models.RecordType(value.(uint16))
-//                 print("RecordType", value)
-//             default:
-//                 print(field.Name, value)
-//             }
-//         }
-//     }
-// }
-
-// var Offset int = 0;
-
-// func DecodeHeader(Encoded []byte) (string, error) {
-// 	var header models.DNSHeader
-
-// 	header.ID = binary.BigEndian.Uint16(Encoded[Offset:Offset + 2])
-// 	Offset += 2
-// 	flags := binary.BigEndian.Uint16(Encoded[Offset:Offset+2])
-// 	Offset += 2
-// 	header.Flags = models.UnpackFlags(flags)
-// 	header.QDCount = binary.BigEndian.Uint16(Encoded[Offset:Offset+2])
-// 	Offset += 2
-// 	header.ANCount = binary.BigEndian.Uint16(Encoded[Offset:Offset+2])
-// 	Offset += 2
-// 	header.NSCount = binary.BigEndian.Uint16(Encoded[Offset:Offset+2])
-// 	Offset += 2
-// 	header.ARCount = binary.BigEndian.Uint16(Encoded[Offset:Offset+2])
-// 	Offset += 2
-
-// 	// headerType := reflect.TypeOf(header)
-// 	// headerValue := reflect.ValueOf(header)
-
-// 	// for i := 0; i < headerType.NumField(); i++ {
-// 	// 	field := headerType.Field(i)
-// 	// 	if field.Name == "Flags" {
-// 	// 		flags := header.Flags
-// 	// 		flagType := reflect.TypeOf(flags)
-// 	// 		flagValue := reflect.ValueOf(flags)
-// 	// 		for j := 0; j < flagType.NumField(); j++ {
-// 	// 			flagField := flagType.Field(j)
-// 	// 			value := flagValue.Field(j).Interface()
-// 	// 			fmt.Println(flagField.Name, value)
-// 	// 		}
-// 	// 		continue
-// 	// 	}
-// 	// 	value := headerValue.Field(i).Interface()
-// 	// 	fmt.Println(field.Name, value)
-// 	// }
-
-// 	printStructFields(header)
-
-// 	return "", nil
-// }
-
-// func DecodeQuestion(Encoded []byte) (string, error) {
-// 	var question models.DNSQuestion
-// 	curr := Offset
-// 	for Encoded[Offset] != 0 {
-// 		Offset++
-// 	}
-// 	name := ""
-// 	for i := curr; i < Offset; i++ {
-// 		length := int(Encoded[i])
-// 		if length == 0 {
-// 			break
-// 		}
-// 		if len(name) > 0{
-// 			name += "."
-// 		}
-// 		name += string(Encoded[i:i+length+1])
-// 		i += length
-// 	}
-// 	Offset++
-
-// 	question.QName = name
-// 	question.QType = binary.BigEndian.Uint16(Encoded[Offset:Offset+2])
-// 	Offset += 2
-// 	question.QClass = binary.BigEndian.Uint16(Encoded[Offset:Offset+2])
-// 	Offset += 2
-
-// 	// questionType := reflect.TypeOf(question)
-// 	// questionValue := reflect.ValueOf(question)
-
-// 	// for i:=0; i<questionType.NumField(); i++ {
-// 	// 	field := questionType.Field(i)
-// 	// 	value := questionValue.Field(i).Interface()
-// 	// 	if field.Name == "QClass"{
-// 	// 		value = models.ClassType(value.(uint16))
-// 	// 		print("ClassType", value)
-// 	// 		continue
-// 	// 	}
-// 	// 	if field.Name == "QType"{
-// 	// 		value = models.RecordType(value.(uint16))
-// 	// 		print("RecordType", value)
-// 	// 		continue
-// 	// 	}
-// 	// 	print(field.Name,value)
-// 	// }
-
-// 	printStructFields(question)
-
-// 	return "", nil
-// }
-
-// func DecodeAnswer(Encoded []byte) (string, error) {
-
-// 	//DNS Name encoding comes into place -> two octet encoding, starting with 11, the first octet and the following octet gives the Offset from the begining of the Encoded string.
-// 	// which becomes 11000000 xxxxxxxx which is equivalent to [192 Offset]
-// 	var answer models.ResponseStruct
-
-// 	if int(Encoded[Offset]) == int(192){
-// 		Offset ++
-// 	}
-
-// 	ptr := int(Encoded[Offset])
-
-// 	curr := ptr
-
-// 	for Encoded[ptr] != 0 {
-// 		ptr++
-// 	}
-// 	ptr++
-// 	name := ""
-
-// 	for i:= curr; i<ptr; i++ {
-// 		length := int(Encoded[i])
-// 		if length == 0 {
-// 			break
-// 		}
-// 		if len(name) > 0{
-// 			name += "."
-// 		}
-// 		name += string(Encoded[i:i+length+1])
-// 		i += length
-// 	}
-// 	Offset++
-// 	answer.Name = name
-
-// 	answer.Class = binary.BigEndian.Uint16(Encoded[Offset:Offset+2])
-// 	Offset += 2
-// 	answer.Type = binary.BigEndian.Uint16(Encoded[Offset:Offset+2])
-// 	Offset += 2
-// 	answer.TTL = binary.BigEndian.Uint32(Encoded[Offset:Offset+4])
-// 	Offset += 4
-// 	answer.RDLength = binary.BigEndian.Uint16(Encoded[Offset:Offset+2])
-// 	Offset += 2
-// 	fmt.Println(name)
-// 	ip := ""
-
-// 	// for i:=0; i < int(answer.RDLength); i++ {
-// 	// 	if len(ip) > 0{
-// 	// 		ip += "."
-// 	// 	}
-// 	// 	ip += strconv.Itoa(int(Encoded[Offset+i]))
-// 	// }
-
-// 	answer.RData = ip
-
-//     // Decode the rest of the fields
-// 	printStructFields(answer)
-// 	return "", nil
-// }
-
 package cmd
 
 import (
@@ -205,6 +12,8 @@ import (
 type DNSDecoder struct {
     Encoded []byte
     Offset  int
+	NSRecords []string
+	IPRecords []string
 }
 
 func (d *DNSDecoder) print(x ...interface{}) {
@@ -232,7 +41,7 @@ func (d *DNSDecoder) DecodeHeader() (models.DNSHeader, error) {
     header.ARCount = binary.BigEndian.Uint16(d.Encoded[d.Offset : d.Offset+2])
     d.Offset += 2
 
-    d.printStructFields(header)
+    d.PrintStructFields(header)
 
     return header, nil
 }
@@ -261,7 +70,7 @@ func (d *DNSDecoder) DecodeQuestion() (models.DNSQuestion, error) {
     question.QClass = binary.BigEndian.Uint16(d.Encoded[d.Offset : d.Offset+2])
     d.Offset += 2
 
-    d.printStructFields(question)
+    d.PrintStructFields(question)
 
     return question, nil
 }
@@ -277,43 +86,17 @@ func (d *DNSDecoder) DecodeAnswers(anCount int) ([]models.ResponseStruct, error)
         answers = append(answers, answer)
     }
 
-	for i := 0; i < len(answers); i++ {
-		d.printStructFields(answers[i])
-	}
-
     return answers, nil
 }
 
 func (d *DNSDecoder) DecodeAnswer() (models.ResponseStruct, error) {
+	// fmt.Println(d.Encoded[d.Offset:])
     var answer models.ResponseStruct
 
-    // Handle DNS name compression
-    if int(d.Encoded[d.Offset]) == 192 {
-        d.Offset++
-    }
-
-    ptr := int(d.Encoded[d.Offset])
-	curr := ptr
-
-	for d.Encoded[ptr] != 0 {
-		ptr++
+	name, err := d.decodeName()
+	if err != nil {
+		return answer, err
 	}
-	ptr++
-	name := ""
-
-	for i:= curr; i<ptr; i++ {
-		length := int(d.Encoded[i])
-		if length == 0 {
-			break
-		}
-		if len(name) > 0{
-			name += "."
-		}
-		name += string(d.Encoded[i:i+length+1])
-		i += length
-	}
-
-    d.Offset++
 
     answer.Name = name
 
@@ -338,17 +121,24 @@ func (d *DNSDecoder) DecodeAnswer() (models.ResponseStruct, error) {
     switch answer.Type {
     case 1: // A record
         answer.RData = net.IP(d.Encoded[d.Offset : d.Offset+int(answer.RDLength)]).String()
+        d.Offset += int(answer.RDLength)
+		d.IPRecords = append(d.IPRecords, answer.RData)
+    case 2: // NS Record
+		nsName, err := d.decodeName()
+		if err != nil {
+			return answer, fmt.Errorf("failed to decode NS record: %v", err)
+		}
+		answer.RData = nsName
+		d.NSRecords = append(d.NSRecords, nsName)
     default:
         answer.RData = string(d.Encoded[d.Offset : d.Offset+int(answer.RDLength)])
+        d.Offset += int(answer.RDLength)
     }
-    d.Offset += int(answer.RDLength)
-
-    d.printStructFields(answer)
 
     return answer, nil
 }
 
-func (d *DNSDecoder) printStructFields(v interface{}) {
+func (d *DNSDecoder) PrintStructFields(v interface{}) {
     val := reflect.ValueOf(v)
     typ := reflect.TypeOf(v)
 
@@ -358,7 +148,7 @@ func (d *DNSDecoder) printStructFields(v interface{}) {
 
         if field.Type.Kind() == reflect.Struct {
             fmt.Printf("Nested Struct: %s\n", field.Name)
-            d.printStructFields(value)
+            d.PrintStructFields(value)
         } else {
             switch field.Name {
             case "QClass":
@@ -372,4 +162,65 @@ func (d *DNSDecoder) printStructFields(v interface{}) {
             }
         }
     }
+}
+
+
+func (d *DNSDecoder) decodeName() (string, error) {
+    var name string
+    originalOffset := d.Offset
+
+    for {
+        if d.Offset >= len(d.Encoded) {
+            return "", fmt.Errorf("invalid name: offset out of bounds")
+        }
+
+        length := int(d.Encoded[d.Offset])
+        if length == 0 {
+            d.Offset++
+            break
+        }
+
+        // Handle DNS name compression (pointer)
+        if length >= 192 { // 192 = 0xC0
+            if d.Offset+1 >= len(d.Encoded) {
+                return "", fmt.Errorf("invalid compression pointer: offset out of bounds")
+            }
+            ptr := int(binary.BigEndian.Uint16(d.Encoded[d.Offset:d.Offset+2]) & 0x3FFF) 
+            d.Offset += 2
+
+            savedOffset := d.Offset
+            d.Offset = ptr
+
+            compressedName, err := d.decodeName()
+            if err != nil {
+                return "", err
+            }
+			if len(name) > 0 {
+				name += "." + compressedName
+			}else{
+            	name += compressedName
+			}
+
+            d.Offset = savedOffset
+            break
+        }
+
+        // Decode a label
+        d.Offset++
+        if d.Offset+length > len(d.Encoded) {
+            return "", fmt.Errorf("invalid label: offset out of bounds")
+        }
+        if len(name) > 0 {
+            name += "."
+        }
+        name += string(d.Encoded[d.Offset : d.Offset+length])
+        d.Offset += length
+    }
+
+    // Reset the offset if no compression was encountered
+    if name == "" {
+        d.Offset = originalOffset
+    }
+
+    return name, nil
 }

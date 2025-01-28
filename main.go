@@ -12,7 +12,7 @@ import (
 func main() {
 
 	flags := models.HeaderFlags{
-		RD: 1,
+		RD: 0,
 	}
 
 	header := models.DNSHeader{
@@ -41,7 +41,7 @@ func main() {
 		return
 	}
 
-	addr, err := net.ResolveUDPAddr("udp", "8.8.8.8:53")
+	addr, err := net.ResolveUDPAddr("udp", "198.41.0.4:53")
 	if err != nil {
 		fmt.Println("Couldn't create a UDP address")
 	}
@@ -62,14 +62,6 @@ func main() {
 		return
 	}
 
-	// _, err = cmd.DecodeHeader(resp)
-
-	// if err != nil {
-	// 	fmt.Println("Error decoding")
-	// 	return
-	// }
-
-
 	decoder := cmd.DNSDecoder{
 		Encoded: resp,
 		Offset: 0,
@@ -88,12 +80,31 @@ func main() {
 		return
 	}
 
-	_, err = decoder.DecodeAnswers(int(h.ANCount))
+	_, err = decoder.DecodeAnswers(int(h.NSCount))
+
+	if err != nil{
+		fmt.Println(err)
+		return
+	}
+	fmt.Println("Name Servers: ")
+	for i := 0; i< len(decoder.NSRecords); i++ {
+		fmt.Println(decoder.NSRecords[i])
+	}
+
+	_, err = decoder.DecodeAnswers(int(h.ARCount))
 
 	if err != nil {
 		fmt.Println(err)
-		return 
+		return
 	}
+
+	fmt.Println("IP Addresses : ")
+	for i := 0; i< len(decoder.IPRecords); i++ {
+		fmt.Println(decoder.IPRecords[i])
+	}
+
+	
+
 
 
 }
