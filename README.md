@@ -2,6 +2,11 @@
 
 A DNS resolver written in Go. This project is a recreational project or an attempt to get a basic understanding of how DNS works.
 
+
+
+https://github.com/user-attachments/assets/e1c2d4b4-183b-46fa-a26c-e17f671b2d51
+
+
 ## Table of Contents
 
 - [Introduction](#introduction)
