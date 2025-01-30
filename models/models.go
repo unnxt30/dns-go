@@ -10,7 +10,7 @@ type DNSHeader struct {
 }
 
 type DNSQuestion struct {
-	QName  string// Encoded Domain Name
+	QName  string // Encoded Domain Name
 	QType  uint16
 	QClass uint16
 }
@@ -19,4 +19,3 @@ type DNSMessage struct {
 	Header   DNSHeader
 	Question DNSQuestion
 }
-

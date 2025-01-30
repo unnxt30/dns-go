@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net"
 	"time"
@@ -83,7 +84,7 @@ func (c *DNSClient) Query(domain string, queryType uint16) (*QueryResult, error)
 type QueryResult struct {
 	Header    models.DNSHeader
 	Question  models.DNSQuestion
-	Answer []models.ResponseStruct
+	Answer    []models.ResponseStruct
 	NSRecords []string
 	IPRecords []string
 }
@@ -130,76 +131,79 @@ func decodeResponse(decoder *cmd.DNSDecoder) (*QueryResult, error) {
 }
 
 func resolve(domain string, queryType uint16, serverAddr string) (*QueryResult, error) {
-    client, err := NewDNSClient(serverAddr)
-    if err != nil {
-        return nil, fmt.Errorf("couldn't create DNS client: %v", err)
-    }
-    defer client.Close()
+	client, err := NewDNSClient(serverAddr)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't create DNS client: %v", err)
+	}
+	defer client.Close()
 
-    client.SetTimeout(time.Second * 10)
+	client.SetTimeout(time.Second * 10)
 
-    result, err := client.Query(domain, queryType)
-    if err != nil {
-        return nil, fmt.Errorf("query failed: %v", err)
-    }
+	result, err := client.Query(domain, queryType)
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %v", err)
+	}
 
-    if result.Header.ANCount > 0 {
+	if result.Header.ANCount > 0 {
 		answers := result.Answer
-        for _,x := range answers{
-            fmt.Printf("Resolved IP for %s: %s\n", domain,x.RData)
-        }
-        return result, nil
-    }
+		for _, x := range answers {
+			fmt.Printf("Resolved IP for %s: %s\n", domain, x.RData)
+		}
+		return result, nil
+	}
 
-    // If the response contains NS records, follow the referrals
-    if result.Header.NSCount > 0 {
-        for _, ns := range result.NSRecords {
-            fmt.Printf("Following referral to authoritative name server: %s\n", ns)
+	// If the response contains NS records, follow the referrals
+	if result.Header.NSCount > 0 {
+		for _, ns := range result.NSRecords {
+			fmt.Printf("Following referral to authoritative name server: %s\n", ns)
 
-            // Check if the additional section contains the IP address of the NS
-            var nsIP string
-            for _, ip := range result.IPRecords {
-                if ip != "" {
-                    nsIP = ip
-                    break
-                }
-            }
+			var nsIP string
+			for _, ip := range result.IPRecords {
+				if ip != "" {
+					nsIP = ip
+					break
+				}
+			}
 
-            // If the IP is not in the additional section, resolve the NS name
-            if nsIP == "" {
-                fmt.Printf("Resolving IP for name server: %s\n", ns)
-                nsResult, err := resolve(ns, 1, "198.41.0.4:53") // Query root server for NS IP
-                if err != nil {
-                    fmt.Printf("Failed to resolve NS %s: %v\n", ns, err)
-                    continue
-                }
-                if len(nsResult.IPRecords) > 0 {
-                    nsIP = nsResult.IPRecords[0]
-                }
-            }
+			if nsIP == "" {
+				fmt.Printf("Resolving IP for name server: %s\n", ns)
+				nsResult, err := resolve(ns, 1, "198.41.0.4:53")
+				if err != nil {
+					fmt.Printf("Failed to resolve NS %s: %v\n", ns, err)
+					continue
+				}
+				if len(nsResult.IPRecords) > 0 {
+					nsIP = nsResult.IPRecords[0]
+				}
+			}
 
-            if nsIP == "" {
-                fmt.Printf("No IP found for name server: %s\n", ns)
-                continue
-            }
+			if nsIP == "" {
+				fmt.Printf("No IP found for name server: %s\n", ns)
+				continue
+			}
 
-            // Query the authoritative name server
-            fmt.Printf("Querying authoritative name server: %s (%s)\n", ns, nsIP)
-            return resolve(domain, queryType, nsIP+":53")
-        }
-    }
+			fmt.Printf("Querying authoritative name server: %s (%s)\n", ns, nsIP)
+			return resolve(domain, queryType, nsIP+":53")
+		}
+	}
 
-    return nil, fmt.Errorf("no answer found for %s", domain)
+	return nil, fmt.Errorf("no answer found for %s", domain)
 }
 
 func main() {
-	root := "198.41.0.4:53"
-	domain := "dns.google.com"
-	_, err := resolve(domain, 1, root) // Start with a root server
-	if err != nil {
-		fmt.Printf("Error resolving %s: %v\n", domain, err)
+	domain := flag.String("domain", "", "The domain to resolve")
+	flag.Parse()
+
+	if *domain == "" {
+		fmt.Println("Please provide a domain to resolve using the -domain flag.")
 		return
 	}
 
+	root := "198.41.0.4:53"
+	_, err := resolve(*domain, 1, root)
+	if err != nil {
+		fmt.Printf("Error resolving %s: %v\n", *domain, err)
+		return
+	}
 
 }
