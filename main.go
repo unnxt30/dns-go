@@ -2,109 +2,204 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net"
+	"time"
 
 	"github.com/unnxt30/dns-go/cmd"
 	"github.com/unnxt30/dns-go/models"
 )
 
-func main() {
+type DNSClient struct {
+	conn       *net.UDPConn
+	serverAddr *net.UDPAddr
+	timeout    time.Duration
+}
 
-	flags := models.HeaderFlags{
-		RD: 0,
-	}
-
-	header := models.DNSHeader{
-		ID:      22,
-		Flags:   flags,
-		QDCount: 1,
-		ANCount: 0,
-		NSCount: 0,
-		ARCount: 0,
-	}
-	question := models.DNSQuestion{
-		QName:  "dns.google.com",
-		QType: 1,
-		QClass: 1,
-	}
-
-	message := models.DNSMessage{
-		Header:   header,
-		Question: question,
-	}
-
-	encoded, err := cmd.EncodeMessage(message)
-
+func NewDNSClient(serverAddr string) (*DNSClient, error) {
+	addr, err := net.ResolveUDPAddr("udp", serverAddr)
 	if err != nil {
-		fmt.Println("Error encoding")
-		return
-	}
-
-	addr, err := net.ResolveUDPAddr("udp", "198.41.0.4:53")
-	if err != nil {
-		fmt.Println("Couldn't create a UDP address")
+		return nil, fmt.Errorf("couldn't resolve UDP address: %v", err)
 	}
 
 	conn, err := net.DialUDP("udp", nil, addr)
-
 	if err != nil {
-		log.Fatal(err)
-		return 
+		return nil, fmt.Errorf("couldn't establish UDP connection: %v", err)
 	}
 
-	defer conn.Close()
+	return &DNSClient{
+		conn:       conn,
+		serverAddr: addr,
+		timeout:    time.Second * 5,
+	}, nil
+}
 
-	resp, err := cmd.ExchangeMessage(conn, encoded)
+func (c *DNSClient) SetTimeout(timeout time.Duration) {
+	c.timeout = timeout
+}
 
+func (c *DNSClient) Close() error {
+	return c.conn.Close()
+}
+
+func (c *DNSClient) Query(domain string, queryType uint16) (*QueryResult, error) {
+	message := models.DNSMessage{
+		Header: models.DNSHeader{
+			ID:      22,
+			Flags:   models.HeaderFlags{RD: 0},
+			QDCount: 1,
+			ANCount: 0,
+			NSCount: 0,
+			ARCount: 0,
+		},
+		Question: models.DNSQuestion{
+			QName:  domain,
+			QType:  queryType,
+			QClass: 1,
+		},
+	}
+
+	encoded, err := cmd.EncodeMessage(message)
 	if err != nil {
-		fmt.Println("Error exchanging message")
-		return
+		return nil, fmt.Errorf("error encoding message: %v", err)
+	}
+
+	if err := c.conn.SetDeadline(time.Now().Add(c.timeout)); err != nil {
+		return nil, fmt.Errorf("error setting timeout: %v", err)
+	}
+
+	resp, err := cmd.ExchangeMessage(c.conn, encoded)
+	if err != nil {
+		return nil, fmt.Errorf("error exchanging message: %v", err)
 	}
 
 	decoder := cmd.DNSDecoder{
 		Encoded: resp,
-		Offset: 0,
-	}	
-
-	h, err := decoder.DecodeHeader()
-	if err != nil {
-		fmt.Println(err)
-		return 
+		Offset:  0,
 	}
 
-	_, err = decoder.DecodeQuestion()
+	return decodeResponse(&decoder)
+}
 
+type QueryResult struct {
+	Header    models.DNSHeader
+	Question  models.DNSQuestion
+	Answer []models.ResponseStruct
+	NSRecords []string
+	IPRecords []string
+}
+
+func decodeResponse(decoder *cmd.DNSDecoder) (*QueryResult, error) {
+	result := &QueryResult{}
+
+	header, err := decoder.DecodeHeader()
 	if err != nil {
-		fmt.Println("Error decoding")
+		return nil, fmt.Errorf("error decoding header: %v", err)
+	}
+	result.Header = header
+
+	question, err := decoder.DecodeQuestion()
+	if err != nil {
+		return nil, fmt.Errorf("error decoding question: %v", err)
+	}
+	result.Question = question
+	if header.ANCount > 0 {
+		ans, err := decoder.DecodeAnswers(int(header.ANCount))
+
+		if err != nil {
+			return nil, fmt.Errorf("error decoding NS records: %v", err)
+		}
+		result.Answer = ans
+	}
+	if header.NSCount > 0 {
+		_, err = decoder.DecodeAnswers(int(header.NSCount))
+		if err != nil {
+			return nil, fmt.Errorf("error decoding NS records: %v", err)
+		}
+		result.NSRecords = decoder.NSRecords
+	}
+
+	if header.ARCount > 0 {
+		_, err = decoder.DecodeAnswers(int(header.ARCount))
+		if err != nil {
+			return nil, fmt.Errorf("error decoding additional records: %v", err)
+		}
+		result.IPRecords = decoder.IPRecords
+	}
+
+	return result, nil
+}
+
+func resolve(domain string, queryType uint16, serverAddr string) (*QueryResult, error) {
+    client, err := NewDNSClient(serverAddr)
+    if err != nil {
+        return nil, fmt.Errorf("couldn't create DNS client: %v", err)
+    }
+    defer client.Close()
+
+    client.SetTimeout(time.Second * 10)
+
+    result, err := client.Query(domain, queryType)
+    if err != nil {
+        return nil, fmt.Errorf("query failed: %v", err)
+    }
+
+    if result.Header.ANCount > 0 {
+		answers := result.Answer
+        for _,x := range answers{
+            fmt.Printf("Resolved IP for %s: %s\n", domain,x.RData)
+        }
+        return result, nil
+    }
+
+    // If the response contains NS records, follow the referrals
+    if result.Header.NSCount > 0 {
+        for _, ns := range result.NSRecords {
+            fmt.Printf("Following referral to authoritative name server: %s\n", ns)
+
+            // Check if the additional section contains the IP address of the NS
+            var nsIP string
+            for _, ip := range result.IPRecords {
+                if ip != "" {
+                    nsIP = ip
+                    break
+                }
+            }
+
+            // If the IP is not in the additional section, resolve the NS name
+            if nsIP == "" {
+                fmt.Printf("Resolving IP for name server: %s\n", ns)
+                nsResult, err := resolve(ns, 1, "198.41.0.4:53") // Query root server for NS IP
+                if err != nil {
+                    fmt.Printf("Failed to resolve NS %s: %v\n", ns, err)
+                    continue
+                }
+                if len(nsResult.IPRecords) > 0 {
+                    nsIP = nsResult.IPRecords[0]
+                }
+            }
+
+            if nsIP == "" {
+                fmt.Printf("No IP found for name server: %s\n", ns)
+                continue
+            }
+
+            // Query the authoritative name server
+            fmt.Printf("Querying authoritative name server: %s (%s)\n", ns, nsIP)
+            return resolve(domain, queryType, nsIP+":53")
+        }
+    }
+
+    return nil, fmt.Errorf("no answer found for %s", domain)
+}
+
+func main() {
+	root := "198.41.0.4:53"
+	domain := "dns.google.com"
+	_, err := resolve(domain, 1, root) // Start with a root server
+	if err != nil {
+		fmt.Printf("Error resolving %s: %v\n", domain, err)
 		return
 	}
-
-	_, err = decoder.DecodeAnswers(int(h.NSCount))
-
-	if err != nil{
-		fmt.Println(err)
-		return
-	}
-	fmt.Println("Name Servers: ")
-	for i := 0; i< len(decoder.NSRecords); i++ {
-		fmt.Println(decoder.NSRecords[i])
-	}
-
-	_, err = decoder.DecodeAnswers(int(h.ARCount))
-
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	fmt.Println("IP Addresses : ")
-	for i := 0; i< len(decoder.IPRecords); i++ {
-		fmt.Println(decoder.IPRecords[i])
-	}
-
-	
-
 
 
 }

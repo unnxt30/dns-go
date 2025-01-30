@@ -41,8 +41,6 @@ func (d *DNSDecoder) DecodeHeader() (models.DNSHeader, error) {
     header.ARCount = binary.BigEndian.Uint16(d.Encoded[d.Offset : d.Offset+2])
     d.Offset += 2
 
-    d.PrintStructFields(header)
-
     return header, nil
 }
 
@@ -70,7 +68,6 @@ func (d *DNSDecoder) DecodeQuestion() (models.DNSQuestion, error) {
     question.QClass = binary.BigEndian.Uint16(d.Encoded[d.Offset : d.Offset+2])
     d.Offset += 2
 
-    d.PrintStructFields(question)
 
     return question, nil
 }
@@ -90,7 +87,6 @@ func (d *DNSDecoder) DecodeAnswers(anCount int) ([]models.ResponseStruct, error)
 }
 
 func (d *DNSDecoder) DecodeAnswer() (models.ResponseStruct, error) {
-	// fmt.Println(d.Encoded[d.Offset:])
     var answer models.ResponseStruct
 
 	name, err := d.decodeName()
